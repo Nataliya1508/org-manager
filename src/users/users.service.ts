@@ -85,7 +85,10 @@ export class UsersService {
     return user;
   }
 
-  async updateBoss(userId: number, updateUserDto: UpdateUserDto): Promise<UserEntity> {
+  async updateBoss(
+    userId: number,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserEntity> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
     if (!user) {
@@ -97,7 +100,9 @@ export class UsersService {
     });
 
     if (!newBoss) {
-      throw new NotFoundException(`New boss with id ${updateUserDto.newBossId} not found`);
+      throw new NotFoundException(
+        `New boss with id ${updateUserDto.newBossId} not found`,
+      );
     }
 
     user.bossId = newBoss;
