@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
@@ -9,12 +13,12 @@ import { UserResponseInterface } from 'src/common/types/userResponse.interface';
 
 @Injectable()
 export class AuthService {
-      constructor(
+  constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-      generateJwt(user: UserEntity): string {
+  generateJwt(user: UserEntity): string {
     return sign(
       {
         id: user.id,
@@ -28,27 +32,27 @@ export class AuthService {
   buildUserResponse(user: UserEntity): UserResponseInterface {
     return { ...user, token: this.generateJwt(user) };
   }
-    
-    async login(loginUserDto: LoginUserDto): Promise<UserResponseInterface> {
-        const user = await this.userRepository.findOne({
-            where: {
-           email: loginUserDto.email
-            },
-             select: [
+
+  async login(loginUserDto: LoginUserDto): Promise<UserResponseInterface> {
+    const user = await this.userRepository.findOne({
+      where: {
+        email: loginUserDto.email,
+      },
+      select: [
         'id',
-                 'email',
+        'email',
         'name',
-                 'password',
-                 'role',
-                 'subordinates',
-        'bossId'
-      
-      ], relations: ['subordinates'],
-        })
-            if (!user) {
+        'password',
+        'role',
+        'subordinates',
+        'bossId',
+      ],
+      relations: ['subordinates'],
+    });
+    if (!user) {
       throw new NotFoundException('User not found');
-            }
-            const isPasswordCorrect = await compare(
+    }
+    const isPasswordCorrect = await compare(
       loginUserDto.password,
       user.password,
     );
@@ -56,11 +60,11 @@ export class AuthService {
     if (!isPasswordCorrect) {
       throw new BadRequestException('Invalid password provided');
     }
-            const userResponse: UserResponseInterface = {
+    const userResponse: UserResponseInterface = {
       ...user,
       token: this.generateJwt(user),
     };
-        delete user.password;
-        return userResponse;
-   }
+    delete user.password;
+    return userResponse;
+  }
 }

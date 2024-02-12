@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { Role } from 'src/roles/enums/role.enum';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
-
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -21,12 +20,17 @@ export class RolesGuard implements CanActivate {
       return true;
     }
     if (user?.role === Role.Boss) {
-      return requiredRoles.includes(Role.Boss) && (user.id === requiredRoles[0] || user.subordinates.includes(requiredRoles[0]));
-
+      return (
+        requiredRoles.includes(Role.Boss) &&
+        (user.id === requiredRoles[0] ||
+          user.subordinates.includes(requiredRoles[0]))
+      );
     }
     // return requiredRoles.some((role) => role === user?.role);
-        return user?.role === Role.User && requiredRoles.includes(Role.User) && user.id === requiredRoles[0];
-
+    return (
+      user?.role === Role.User &&
+      requiredRoles.includes(Role.User) &&
+      user.id === requiredRoles[0]
+    );
   }
-
 }

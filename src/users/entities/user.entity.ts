@@ -8,7 +8,7 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
-  PrimaryGeneratedColumn
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 
 @Entity({ name: 'users' })
@@ -28,14 +28,12 @@ export class UserEntity {
 
   @Column({ type: 'enum', enum: Role, default: Role.User })
   role: Role;
-    
-    
-  @ManyToOne(() => UserEntity, user => user.subordinates, { nullable: true })
-        @JoinColumn({ name: 'bossId' })    
+
+  @ManyToOne(() => UserEntity, (user) => user.subordinates, { nullable: true })
+  @JoinColumn({ name: 'bossId' })
   bossId: UserEntity;
 
-  @OneToMany(() => UserEntity, user => user.bossId)
-
+  @OneToMany(() => UserEntity, (user) => user.bossId)
   subordinates: UserEntity[];
 
   @BeforeInsert()

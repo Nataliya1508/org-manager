@@ -10,7 +10,8 @@ import { UsersService } from './users/users.service';
 import { UserEntity } from './users/entities/user.entity';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }),
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService): TypeOrmModuleOptions => ({
@@ -34,16 +35,16 @@ import { UserEntity } from './users/entities/user.entity';
       }),
       inject: [ConfigService],
     }),
- 
+
     TypeOrmModule.forFeature([UserEntity]),
     UsersModule,
     AuthModule,
-   ],
+  ],
   controllers: [AppController],
   providers: [AppService, UsersService],
 })
 export class AppModule {
-    configure(consumer: MiddlewareConsumer) {
+  configure(consumer: MiddlewareConsumer) {
     consumer.apply(AuthMiddleware).forRoutes({
       path: '*',
       method: RequestMethod.ALL,
