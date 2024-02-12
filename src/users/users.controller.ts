@@ -16,6 +16,10 @@ import { Role } from 'src/roles/enums/role.enum';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { User } from 'src/common/decorators/user.decorator';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { UpdateUserDto } from './dto/update-user.dto';
+
+@ApiTags('Users')
 @Controller()
 export class UsersController {
   constructor(
@@ -23,12 +27,17 @@ export class UsersController {
     private readonly usersService: UsersService,
   ) {}
   @Get('currentUser')
+  @ApiOperation({ summary: 'Get current user' })
+  @ApiResponse({ status: 200, description: 'Current user' })
   async currentUser(
     @Req() request: ExpressRequestInterfase,
   ): Promise<UserResponseInterface> {
     return this.authService.buildUserResponse(request.user);
   }
   @Get('users')
+  @ApiOperation({ summary: 'Get all users (ONLY ADMIN)' })
+  @ApiResponse({ status: 200, description: 'List of all users' })
+  @ApiBearerAuth('JWT-auth')
   @Roles(Role.Admin)
   @UseGuards(RolesGuard)
   @UseGuards(AuthGuard)
@@ -37,6 +46,9 @@ export class UsersController {
   }
 
   @Get('user')
+  @ApiOperation({ summary: 'Get user and their subordinates or only user' })
+  @ApiResponse({ status: 200, description: 'User and subordinates or user' })
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(RolesGuard)
   @UseGuards(AuthGuard)
   async getUsers(@User('id') userId) {
@@ -44,8 +56,14 @@ export class UsersController {
   }
 
   @Patch('user')
+  @ApiOperation({ summary: 'Update boss of a user' })
+  @ApiResponse({
+    status: 200,
+    description: 'User information after updating boss',
+  })
+  @ApiBearerAuth('JWT-auth')
   @UseGuards(AuthGuard)
-  updateBoss(@User('id') userId, @Body('newBossId') newBossId: number) {
-    return this.usersService.updateBoss(userId, newBossId);
+  updateBoss(@User('id') userId, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.updateBoss(userId, updateUserDto);
   }
 }

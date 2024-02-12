@@ -9,6 +9,7 @@ import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { Role } from 'src/roles/enums/role.enum';
 import { FindOperator, Repository } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -84,7 +85,7 @@ export class UsersService {
     return user;
   }
 
-  async updateBoss(userId: number, newBossId: number): Promise<UserEntity> {
+  async updateBoss(userId: number, updateUserDto: UpdateUserDto): Promise<UserEntity> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
     if (!user) {
@@ -92,11 +93,11 @@ export class UsersService {
     }
 
     const newBoss = await this.userRepository.findOne({
-      where: { id: newBossId },
+      where: { id: updateUserDto.newBossId },
     });
 
     if (!newBoss) {
-      throw new NotFoundException(`New boss with id ${newBossId} not found`);
+      throw new NotFoundException(`New boss with id ${updateUserDto.newBossId} not found`);
     }
 
     user.bossId = newBoss;

@@ -45,29 +45,41 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
-## Test
+## Migrations
 
 ```bash
-# unit tests
-$ npm run test
+# drop database
+$ npm run db:drop
 
-# e2e tests
-$ npm run test:e2e
+# create migrations
+$ npm run typeorm migration:generate src/database/migrations/Migration_name
 
-# test coverage
-$ npm run test:cov
+# apply migration
+$ npm run db:migrate
 ```
 
-## Support
+## Lint
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+# prettier
+$ npm run format
 
-## Stay in touch
+#  linter
+$ npm run lint
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+# eslint
+$ npm run lint:type
+
+```
+
+## Useful links
+
+http://localhost:3002/api/docs#/Auth/api/docs
 
 ## License
 
 Nest is [MIT licensed](LICENSE).
+
+```
+
+```
