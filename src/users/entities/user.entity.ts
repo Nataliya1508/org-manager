@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { hash } from 'bcrypt';
+import { Exclude } from 'class-transformer';
 import { IsEmail } from 'class-validator';
 import { Role } from 'src/roles/enums/role.enum';
 import {
-  BeforeInsert,
   Column,
   Entity,
   JoinColumn,
@@ -11,6 +11,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { CreateUserDto } from '../dto/create-user.dto';
 
 @Entity({ name: 'users' })
 export class UserEntity {
@@ -28,8 +29,9 @@ export class UserEntity {
   name: string;
 
   @ApiProperty({ example: '1234@A1a', description: 'Password' })
+  @Exclude()
   @Column({ select: false })
-  password: string;
+  password?: string;
 
   @ApiProperty({
     example: 'boss',
@@ -56,8 +58,12 @@ export class UserEntity {
   @OneToMany(() => UserEntity, (user) => user.bossId)
   subordinates: UserEntity[];
 
-  @BeforeInsert()
-  async hashPassword() {
-    this.password = await hash(this.password, 10);
+  constructor(user?: CreateUserDto) {
+    if (!user) return;
+    this.email = user.email;
+    this.password = user.password;
+    this.name = user.name;
+    this.email = user.email;
+    this.role = user.role;
   }
 }

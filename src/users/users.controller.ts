@@ -2,8 +2,8 @@ import {
   Body,
   Controller,
   Get,
-  Param,
   Patch,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -23,6 +23,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PaginationDto } from './dto/pagination.dto';
 
 @ApiTags('Users')
 @Controller()
@@ -37,27 +38,7 @@ export class UsersController {
   async currentUser(
     @Req() request: ExpressRequestInterfase,
   ): Promise<UserResponseInterface> {
-    return this.authService.buildUserResponse(request.user);
-  }
-  @Get('users')
-  @ApiOperation({ summary: 'Get all users (ONLY ADMIN)' })
-  @ApiResponse({ status: 200, description: 'List of all users' })
-  @ApiBearerAuth('JWT-auth')
-  @Roles(Role.Admin)
-  @UseGuards(RolesGuard)
-  @UseGuards(AuthGuard)
-  async getAll() {
-    return this.usersService.findAll();
-  }
-
-  @Get('user')
-  @ApiOperation({ summary: 'Get user and their subordinates or only user' })
-  @ApiResponse({ status: 200, description: 'User and subordinates or user' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(RolesGuard)
-  @UseGuards(AuthGuard)
-  async getUsers(@User('id') userId) {
-    return this.usersService.findBossAndSubordinates(userId);
+    return this.authService.CreateUserResponse(request.user);
   }
 
   @Patch('user')
@@ -70,5 +51,27 @@ export class UsersController {
   @UseGuards(AuthGuard)
   updateBoss(@User('id') userId, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.updateBoss(userId, updateUserDto);
+  }
+
+  @Get('users')
+  @ApiOperation({ summary: 'Get all users (ADMIN)' })
+  @ApiResponse({ status: 200, description: 'List of all users' })
+  @ApiBearerAuth('JWT-auth')
+  @Roles(Role.Admin)
+  @UseGuards(RolesGuard)
+  async getAllUsers(@Query() paginationDto: PaginationDto) {
+    const { page, limit } = paginationDto;
+    const allUsers = await this.usersService.getAllUsers(page, limit);
+    return allUsers;
+  }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get user and their subordinates or only user' })
+  @ApiResponse({ status: 200, description: 'User and subordinates or user' })
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AuthGuard)
+  async getUsers(@User('id') userId, @Query() paginationDto: PaginationDto) {
+    const { page, limit } = paginationDto;
+    return this.usersService.getUser(userId, page, limit);
   }
 }

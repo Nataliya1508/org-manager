@@ -8,10 +8,17 @@ import { AuthModule } from './auth/auth.module';
 import { AuthMiddleware } from './common/middlewares/auth.middleware';
 import { UsersService } from './users/users.service';
 import { UserEntity } from './users/entities/user.entity';
+import { configValidationSchema } from './configurations/config-validation-schema';
+import configuration from './configurations/configuration';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      envFilePath: '.env',
+      isGlobal: true,
+      validationSchema: configValidationSchema,
+      load: [configuration],
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService): TypeOrmModuleOptions => ({

@@ -19,24 +19,21 @@ export class AuthService {
   ) {}
 
   generateJwt(user: UserEntity): string {
-    return sign(
-      {
-        id: user.id,
-        role: user.role,
-        email: user.email,
-      },
-      process.env.JWT_SECRET,
-    );
+    const { id, role } = user;
+    const jwtPayload = { id, role };
+
+    return sign(jwtPayload, process.env.JWT_SECRET) as string;
   }
 
-  buildUserResponse(user: UserEntity): UserResponseInterface {
+  CreateUserResponse(user: UserEntity): UserResponseInterface {
     return { ...user, token: this.generateJwt(user) };
   }
 
   async login(loginUserDto: LoginUserDto): Promise<UserResponseInterface> {
+    const { email, password } = loginUserDto;
     const user = await this.userRepository.findOne({
       where: {
-        email: loginUserDto.email,
+        email: email,
       },
       select: [
         'id',
@@ -49,13 +46,11 @@ export class AuthService {
       ],
       relations: ['subordinates'],
     });
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const isPasswordCorrect = await compare(
-      loginUserDto.password,
-      user.password,
-    );
+    const isPasswordCorrect = await compare(password, user.password);
 
     if (!isPasswordCorrect) {
       throw new BadRequestException('Invalid password provided');
