@@ -1,6 +1,4 @@
 import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
@@ -14,7 +12,6 @@ import configuration from './configurations/configuration';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: '.env',
       isGlobal: true,
       validationSchema: configValidationSchema,
       load: [configuration],
@@ -47,8 +44,8 @@ import configuration from './configurations/configuration';
     UsersModule,
     AuthModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, UsersService],
+  controllers: [],
+  providers: [UsersService],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

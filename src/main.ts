@@ -1,9 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Org-manager')
     .setDescription('Documentation REST API')
@@ -14,6 +16,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('/api/docs', app, document);
-  await app.listen(3002);
+  const port = Number(configService.get<number>('PORT'));
+  await app.listen(port);
 }
 bootstrap();

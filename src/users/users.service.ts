@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { Role } from 'src/roles/enums/role.enum';
-import { FindOperator, Repository } from 'typeorm';
+import { FindOperator, In, Repository } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { hash } from 'bcrypt';
@@ -19,67 +19,68 @@ export class UsersService {
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
-  let newUser: UserEntity;
+  async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
+    let newUser: UserEntity;
 
-  const { role, subordinates, bossId, email } = createUserDto;
+    const { role, subordinates, bossId, email } = createUserDto;
 
-  if (role === Role.Admin) {
-    
-    if (subordinates !== undefined && subordinates.length > 0 || bossId !== undefined) {
-      throw new HttpException(
-        'An administrator cannot have a boss or subordinates',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (role === Role.Admin) {
+      if (
+        (subordinates !== undefined && subordinates.length > 0) ||
+        bossId !== undefined
+      ) {
+        throw new HttpException(
+          'An administrator cannot have a boss or subordinates',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    } else if (role === Role.User) {
+      if (!bossId || (subordinates !== undefined && subordinates.length > 0)) {
+        throw new HttpException(
+          'A user must have a boss and cannot have subordinates',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    } else if (role === Role.Boss) {
+      if (subordinates === undefined || subordinates.length === 0) {
+        throw new HttpException(
+          'A boss must have subordinates',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
     }
-  } else if (role === Role.User) {
-    if (!bossId || (subordinates !== undefined && subordinates.length > 0)) {
-      throw new HttpException(
-        'A user must have a boss and cannot have subordinates',
-        HttpStatus.BAD_REQUEST,
-      );
+
+    const userByEmail = await this.userRepository.findOne({
+      where: { email: email },
+    });
+
+    if (userByEmail) {
+      throw new HttpException('Email is already in use ', HttpStatus.CONFLICT);
     }
-  } else if (role === Role.Boss) {
-    if (subordinates === undefined || subordinates.length === 0) {
-      throw new HttpException(
-        'A boss must have subordinates',
-        HttpStatus.BAD_REQUEST,
+
+    newUser = new UserEntity(createUserDto);
+    newUser.password = await hash(createUserDto.password, 10);
+
+    if (subordinates !== undefined && subordinates.length > 0) {
+      const foundSubordinates = subordinates.map((subId) =>
+        parseInt(subId, 10),
       );
+      const resultSubordinates = await this.userRepository.find({
+        where: { id: In(foundSubordinates) },
+      });
+
+      if (resultSubordinates.some((subordinate) => !subordinate)) {
+        throw new HttpException(
+          'One or more subordinates not found',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      newUser.subordinates = resultSubordinates;
     }
+
+    return await this.userRepository.save(newUser);
   }
-
-  const userByEmail = await this.userRepository.findOne({
-    where: { email: email },
-  });
-
-  if (userByEmail) {
-    throw new HttpException('Email is already in use ', HttpStatus.CONFLICT);
-  }
-
-  newUser = new UserEntity(createUserDto);
-  newUser.password = await hash(createUserDto.password, 10);
-
-  if (subordinates !== undefined && subordinates.length > 0) {
-    const foundSubordinates = await Promise.all(
-      subordinates.map((subId) =>
-        this.userRepository.findOne({
-          where: { id: new FindOperator('equal', parseInt(subId, 10)) },
-        }),
-      ),
-    );
-
-    if (foundSubordinates.some((subordinate) => !subordinate)) {
-      throw new HttpException(
-        'One or more subordinates not found',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    newUser.subordinates = foundSubordinates;
-  }
-
-  return await this.userRepository.save(newUser);
-}
   findById(id: number): Promise<UserEntity> {
     return this.userRepository.findOne({ where: { id } });
   }
