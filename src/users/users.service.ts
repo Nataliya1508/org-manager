@@ -19,55 +19,67 @@ export class UsersService {
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
-    let newUser: UserEntity;
+async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
+  let newUser: UserEntity;
 
-    const { role, subordinates, bossId, email } = createUserDto;
+  const { role, subordinates, bossId, email } = createUserDto;
 
-    if (role === Role.Boss && (!subordinates || subordinates.length === 0)) {
+  if (role === Role.Admin) {
+    
+    if (subordinates !== undefined && subordinates.length > 0 || bossId !== undefined) {
       throw new HttpException(
-        'Boss must have subordinates',
+        'An administrator cannot have a boss or subordinates',
         HttpStatus.BAD_REQUEST,
       );
-    } else if (role !== Role.Admin && !bossId) {
-      throw new HttpException('Boss is required', HttpStatus.BAD_REQUEST);
     }
-
-    const userByEmail = await this.userRepository.findOne({
-      where: { email: email },
-    });
-    if (userByEmail) {
-      throw new HttpException('Email is already in use ', HttpStatus.CONFLICT);
+  } else if (role === Role.User) {
+    if (!bossId || (subordinates !== undefined && subordinates.length > 0)) {
+      throw new HttpException(
+        'A user must have a boss and cannot have subordinates',
+        HttpStatus.BAD_REQUEST,
+      );
     }
-
-    if (!role || role === Role.User || subordinates.length === 0) {
-      newUser = new UserEntity(createUserDto);
-      newUser.password = await hash(createUserDto.password, 10);
-      return await this.userRepository.save(newUser);
-    } else if (role === Role.Admin || role === Role.Boss) {
-      newUser = new UserEntity(createUserDto);
-      if (subordinates) {
-        const subordinates = await Promise.all(
-          createUserDto.subordinates.map((subId) =>
-            this.userRepository.findOne({
-              where: { id: new FindOperator('equal', parseInt(subId, 10)) },
-            }),
-          ),
-        );
-        if (subordinates.some((subordinate) => !subordinate)) {
-          throw new HttpException(
-            'One or more subordinates not found',
-            HttpStatus.BAD_REQUEST,
-          );
-        }
-
-        newUser.password = await hash(createUserDto.password, 10);
-        newUser.subordinates = subordinates;
-      }
-      return await this.userRepository.save(newUser);
+  } else if (role === Role.Boss) {
+    if (subordinates === undefined || subordinates.length === 0) {
+      throw new HttpException(
+        'A boss must have subordinates',
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
+  const userByEmail = await this.userRepository.findOne({
+    where: { email: email },
+  });
+
+  if (userByEmail) {
+    throw new HttpException('Email is already in use ', HttpStatus.CONFLICT);
+  }
+
+  newUser = new UserEntity(createUserDto);
+  newUser.password = await hash(createUserDto.password, 10);
+
+  if (subordinates !== undefined && subordinates.length > 0) {
+    const foundSubordinates = await Promise.all(
+      subordinates.map((subId) =>
+        this.userRepository.findOne({
+          where: { id: new FindOperator('equal', parseInt(subId, 10)) },
+        }),
+      ),
+    );
+
+    if (foundSubordinates.some((subordinate) => !subordinate)) {
+      throw new HttpException(
+        'One or more subordinates not found',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    newUser.subordinates = foundSubordinates;
+  }
+
+  return await this.userRepository.save(newUser);
+}
   findById(id: number): Promise<UserEntity> {
     return this.userRepository.findOne({ where: { id } });
   }
