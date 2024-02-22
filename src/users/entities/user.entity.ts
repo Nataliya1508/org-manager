@@ -48,14 +48,14 @@ export class UserEntity {
     nullable: true,
   })
   @ManyToOne(() => UserEntity, (user) => user.subordinates, { nullable: true })
-  @JoinColumn({ name: 'bossId' })
-  bossId: UserEntity;
+  @JoinColumn({ name: 'boss' })
+  boss: UserEntity;
 
   @ApiProperty({
     type: () => [UserEntity],
     description: 'List of subordinates',
   })
-  @OneToMany(() => UserEntity, (user) => user.bossId)
+  @OneToMany(() => UserEntity, (user) => user.boss)
   subordinates: UserEntity[];
 
   constructor(user?: CreateUserDto) {

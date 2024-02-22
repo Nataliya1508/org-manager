@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  ParseIntPipe,
   Patch,
   Query,
   Req,
@@ -72,6 +74,6 @@ export class UsersController {
   @UseGuards(AuthGuard)
   async getUsers(@User('id') userId, @Query() paginationDto: PaginationDto) {
     const { page, limit } = paginationDto;
-    return this.usersService.getUser(userId, page, limit);
+    return this.usersService.getUser(userId);
   }
 }

@@ -68,102 +68,6 @@ export class UsersService {
     }
   }
 
-  async getUser(
-    userId: number = null,
-    page: number = 1,
-    limit: number = 10,
-  ): Promise<UserEntity[]> {
-    const offset = (page - 1) * limit;
-    const query = this.userRepository
-      .createQueryBuilder('user')
-      .addSelect([
-        'user.id',
-        'user.name',
-        'user.email',
-        'user.role',
-        'user.bossId',
-      ])
-      .leftJoinAndSelect('user.subordinates', 'subordinates');
-
-    if (userId) {
-      query.where('user.id = :id', { id: userId });
-    }
-
-    const results = await query.getRawMany();
-
-    const users: UserEntity[] = [];
-
-    for (const result of results) {
-      const { user_id, user_name, user_email, user_role, user_bossId } = result;
-
-      const user: UserEntity = {
-        id: user_id,
-        name: user_name,
-        email: user_email,
-        role: user_role,
-        bossId: user_bossId,
-        subordinates: [],
-      };
-
-      if (result.subordinates_id) {
-        const subordinates = await this.getUser(
-          result.subordinates_id,
-          1,
-          limit,
-        );
-        user.subordinates = subordinates;
-      }
-
-      users.push(user);
-    }
-
-    return users.slice(offset, offset + limit);
-  }
-
-  async getAllUsers(
-    page: number = 1,
-    limit: number = 10,
-  ): Promise<UserEntity[]> {
-    const query = this.userRepository
-      .createQueryBuilder('user')
-      .addSelect([
-        'user.id',
-        'user.name',
-        'user.email',
-        'user.role',
-        'user.bossId',
-      ])
-      .leftJoinAndSelect('user.subordinates', 'subordinates');
-
-    const results = await query.getRawMany();
-
-    const users: UserEntity[] = [];
-
-    for (const result of results) {
-      const { user_id, user_name, user_email, user_role, user_bossId } = result;
-      const user: UserEntity = {
-        id: user_id,
-        name: user_name,
-        email: user_email,
-        role: user_role,
-        bossId: user_bossId,
-        subordinates: [],
-      };
-
-      if (result.subordinates_id) {
-        const subordinates = await this.getUser(
-          result.subordinates_id,
-          page,
-          limit,
-        );
-        user.subordinates = subordinates;
-      }
-
-      const users = await this.getUser(null);
-      return users.slice((page - 1) * limit, page * limit);
-    }
-  }
-
   findById(id: number): Promise<UserEntity> {
     return this.userRepository.findOne({ where: { id } });
   }
@@ -172,6 +76,7 @@ export class UsersService {
     userId: number,
     updateUserDto: UpdateUserDto,
   ): Promise<UserEntity> {
+    const { newBossId, subordinateId } = updateUserDto;
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['subordinates'],
@@ -182,20 +87,164 @@ export class UsersService {
     }
 
     const newBoss = await this.userRepository.findOne({
-      where: { id: updateUserDto.newBossId },
+      where: { id: newBossId },
     });
 
-    if (newBoss.role === 'user') {
-      throw new HttpException('Users cannot be boss', HttpStatus.BAD_REQUEST);
-    }
-
     if (!newBoss) {
-      throw new NotFoundException(
-        `New boss with id ${updateUserDto.newBossId} not found`,
-      );
+      throw new NotFoundException(`New boss with id ${newBossId} not found`);
     }
 
-    user.bossId = newBoss;
-    return this.userRepository.save(user);
+    if (newBoss.role === 'user') {
+      throw new HttpException('Users cannot be a boss', HttpStatus.BAD_REQUEST);
+    }
+
+    if (subordinateId) {
+      const subordinateToUpdate = user.subordinates.find(
+        (sub) => sub.id === subordinateId,
+      );
+
+      if (!subordinateToUpdate) {
+        throw new NotFoundException(
+          `Subordinate with id ${subordinateId} not found`,
+        );
+      }
+
+      subordinateToUpdate.boss = newBoss;
+    } else {
+      user.boss = newBoss;
+    }
+
+    await this.userRepository.save(user.subordinates);
+
+    return user;
+  }
+
+  async getUser(
+    userId: number = null,
+    page: number = 1,
+    limit: number = 10,
+    offset = (page - 1) * limit,
+  ): Promise<UserEntity[]> {
+    const recursiveCte = `
+    WITH RECURSIVE user_hierarchy (id, name, email, boss, Level) AS (
+      SELECT id, name, email, boss, 1 as Level
+      FROM users
+       WHERE id = $1
+      UNION ALL
+      SELECT u.id, u.name, u.email, u.boss, uh.Level + 1
+      FROM users u
+      INNER JOIN user_hierarchy uh ON u.boss = uh.id
+    )
+    SELECT * FROM user_hierarchy
+    WHERE boss = $1 OR id = $1 
+
+
+  `;
+    const paginatedQuery = `
+    SELECT * FROM (${recursiveCte}) as paginated_hierarchy
+    OFFSET $2
+    LIMIT $3
+  `;
+
+    const results = await this.userRepository.query(paginatedQuery, [
+      userId,
+      offset,
+      limit,
+    ]);
+
+    const userMap = new Map();
+
+    results.forEach((result) => {
+      const { id, name, email, role, boss: bossId } = result;
+      const user = {
+        id,
+        name,
+        email,
+        role,
+        bossId,
+        subordinates: [],
+      };
+
+      userMap.set(user.id, user);
+    });
+
+    const users = Array.from(userMap.values());
+
+    users.forEach((user) => {
+      if (user.bossId && userMap.has(user.bossId)) {
+        const boss = userMap.get(user.bossId);
+        boss.subordinates.push(user);
+      }
+    });
+
+    return users;
+  }
+
+  async getAllUsers(
+    page: number = 1,
+    limit: number = 10,
+    offset = (page - 1) * limit,
+  ): Promise<UserEntity[]> {
+    const recursiveCte = `
+    WITH RECURSIVE user_hierarchy (id, name, email, role, boss, Level) AS (
+      SELECT
+        id,
+        name,
+        email,
+        role,
+        boss,
+        1 as Level
+      FROM
+        users
+      UNION ALL
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.boss,
+        uh.Level + 1
+      FROM
+        users u
+      INNER JOIN
+        user_hierarchy uh ON u.boss = uh.id
+    )
+    SELECT * FROM user_hierarchy
+            OFFSET $1
+    LIMIT $2
+  `;
+
+    const results = await this.userRepository.query(recursiveCte, [
+      offset,
+      limit,
+    ]);
+
+    const userMap = new Map();
+
+    results.forEach((result) => {
+      const { id, name, email, role, boss: bossId } = result;
+
+      const user = {
+        id,
+        name,
+        email,
+        role,
+        bossId,
+        subordinates: [],
+      };
+
+      userMap.set(user.id, user);
+    });
+
+    const users = Array.from(userMap.values());
+
+    users.forEach((user) => {
+      if (user.bossId && userMap.has(user.bossId)) {
+        const boss = userMap.get(user.bossId);
+        boss.subordinates.push(user);
+      }
+    });
+
+    return users;
   }
 }

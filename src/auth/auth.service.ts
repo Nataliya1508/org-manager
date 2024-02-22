@@ -42,7 +42,7 @@ export class AuthService {
         'password',
         'role',
         'subordinates',
-        'bossId',
+        'boss',
       ],
       relations: ['subordinates'],
     });
