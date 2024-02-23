@@ -32,7 +32,7 @@ export class CreateUserDto {
     description: 'Identifier of the boss',
     nullable: true,
   })
-  readonly bossId?: string;
+  readonly bossId?: number;
 
   @ApiProperty({
     example: [3, 5],

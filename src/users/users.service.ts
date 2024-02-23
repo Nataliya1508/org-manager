@@ -61,6 +61,12 @@ export class UsersService {
     newUser = new UserEntity(createUserDto);
     newUser.password = await hash(createUserDto.password, 10);
 
+    const boss = await this.userRepository.findOne({ where: { id: bossId } });
+    if (!boss) {
+      throw new HttpException('Boss not found', HttpStatus.BAD_REQUEST);
+    }
+    newUser.boss = boss;
+
     if (subordinates !== undefined && subordinates.length > 0) {
       const foundSubordinates = subordinates.map((subId) =>
         parseInt(subId, 10),
@@ -78,7 +84,6 @@ export class UsersService {
 
       newUser.subordinates = resultSubordinates;
     }
-
     return await this.userRepository.save(newUser);
   }
   findById(id: number): Promise<UserEntity> {
